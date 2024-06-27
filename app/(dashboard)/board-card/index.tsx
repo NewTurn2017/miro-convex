@@ -9,7 +9,11 @@ import { useAuth } from '@clerk/clerk-react'
 import { Footer } from './footer'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Actions } from '@/components/actions'
-import { MoreHorizontal, MoreVertical } from 'lucide-react'
+import { MoreVertical } from 'lucide-react'
+import { useApiMutation } from '@/hooks/use-api-mutation'
+import { api } from '@/convex/_generated/api'
+import { toast } from 'sonner'
+import { useMutation } from 'convex/react'
 
 interface BoardCardProps {
   id: string
@@ -38,6 +42,25 @@ export const BoardCard = ({
     addSuffix: true,
     locale: ko,
   })
+
+  const { mutate: onFavorite, pending: isFavoritePending } = useApiMutation(
+    api.board.favorite
+  )
+  const { mutate: onUnfavorite, pending: isUnfavoritePending } = useApiMutation(
+    api.board.unfavorite
+  )
+
+  const toggleFavorite = () => {
+    if (isFavorite) {
+      onUnfavorite({ id }).catch(() =>
+        toast.error('즐겨찾기 해제에 실패했습니다.')
+      )
+    } else {
+      onFavorite({ id, orgId }).catch(() =>
+        toast.error('즐겨찾기에 실패했습니다.')
+      )
+    }
+  }
   return (
     <Link href={`/board/${id}`}>
       <div className='group aspect-[100/127] border rounded-lg flex flex-col justify-between overflow-hidden'>
@@ -55,8 +78,8 @@ export const BoardCard = ({
           title={title}
           authorLabel={authorLabel}
           createdAtLabel={createdAtLabel}
-          onClick={() => {}}
-          disabled={false}
+          onClick={toggleFavorite}
+          disabled={isFavoritePending || isUnfavoritePending}
         />
       </div>
     </Link>
