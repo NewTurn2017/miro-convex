@@ -90,7 +90,7 @@ export const SelectionTools = memo(
           transform: `translate(calc(${x}px - 50%), calc(${y - 16}px - 100%))`,
         }}
       >
-        <ColorPicker onChange={setFill} />
+        <ColorPicker onChange={setFill} isBorder />
         <div className='flex flex-col gap-y-0.5'>
           <Hint label='앞으로 가져오기' side='top' sideOffset={10}>
             <Button variant='board' size='icon' onClick={moveToFront}>

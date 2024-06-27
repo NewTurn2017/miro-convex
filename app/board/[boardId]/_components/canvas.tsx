@@ -437,6 +437,8 @@ export const Canvas = ({ boardId }: CanvasProps) => {
         canUndo={canUndo}
         redo={history.redo}
         undo={history.undo}
+        lastUsedColor={lastUsedColor} // 추가된 부분
+        setLastUsedColor={setLastUsedColor} // 추가된 부분
       />
       <SelectionTools camera={camera} setLastUsedColor={setLastUsedColor} />
       <svg

@@ -9,7 +9,10 @@ import {
   Undo2,
 } from 'lucide-react'
 import { ToolButton } from './tool-button'
-import { CanvasMode, CanvasState, LayerType } from '@/types/canvas'
+import { CanvasMode, CanvasState, Color, LayerType } from '@/types/canvas'
+import { useState } from 'react'
+import { colorToCss } from '@/lib/utils'
+import { ColorPicker } from './color-picker'
 
 interface ToolbarProps {
   canvasState: CanvasState
@@ -18,6 +21,8 @@ interface ToolbarProps {
   redo: () => void
   canUndo: boolean
   canRedo: boolean
+  lastUsedColor: Color // 추가된 부분
+  setLastUsedColor: (color: Color) => void // 추가된 부분
 }
 
 export const Toolbar = ({
@@ -27,7 +32,11 @@ export const Toolbar = ({
   redo,
   canUndo,
   canRedo,
+  lastUsedColor,
+  setLastUsedColor,
 }: ToolbarProps) => {
+  const [colorPickerVisible, setColorPickerVisible] = useState(false) // 추가된 부분
+
   return (
     <div className='absolute top-[50%] -translate-y-[50%] left-2 flex flex-col gap-y-4'>
       <div className='bg-white rounded-md p-1.5 flex gap-y-1 flex-col items-center shadow-md'>
@@ -110,16 +119,36 @@ export const Toolbar = ({
           }
           isActive={canvasState.mode === CanvasMode.Pencil}
         />
+        {/* 색상 버튼 추가 */}
+        <button
+          className='size-8 items-center flex justify-center hover:opacity-75 transition'
+          style={{ backgroundColor: colorToCss(lastUsedColor) }}
+          onClick={() => setColorPickerVisible(!colorPickerVisible)}
+        >
+          <div
+            className='size-8 rounded-md border border-neutral-300'
+            style={{ background: colorToCss(lastUsedColor) }}
+          />
+        </button>
       </div>
+      {/* ColorPicker 컴포넌트 조건부 렌더링 */}
+      {colorPickerVisible && (
+        <div className='absolute left-16 bg-white rounded-md p-1.5 flex gap-y-1 flex-col items-center shadow-md'>
+          <ColorPicker
+            onChange={setLastUsedColor}
+            setColorPickerVisible={setColorPickerVisible}
+          />
+        </div>
+      )}
       <div className='bg-white rounded-md p-1.5 flex flex-col items-center shadow-md'>
         <ToolButton
-          label='실행 취소'
+          label='실행 취소 (Ctrl + z)'
           icon={Undo2}
           onClick={undo}
           isDisabled={!canUndo}
         />
         <ToolButton
-          label='다시 실행'
+          label='다시 실행 (Ctrl + Shift + z)'
           icon={Redo2}
           onClick={redo}
           isDisabled={!canRedo}
