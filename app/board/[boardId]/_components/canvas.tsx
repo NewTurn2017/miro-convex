@@ -1,4 +1,5 @@
 'use client'
+import { useRef } from 'react' // 추가
 
 import { nanoid } from 'nanoid'
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -27,6 +28,7 @@ import {
 import { CursorsPresence } from './cursors-presence'
 import React from 'react'
 import {
+  cn,
   colorToCss,
   connectionIdToColor,
   findIntersectingLayersWithRectangle,
@@ -62,6 +64,14 @@ export const Canvas = ({ boardId }: CanvasProps) => {
     g: 255,
     b: 255,
   })
+
+  const [isPanning, setIsPanning] = useState(false) // 추가된 부분
+  const panStart = useRef<Point>({ x: 0, y: 0 }) // 추가된 부분
+
+  const isPanningRef = useRef(false)
+  const panStartRef = useRef<Point>({ x: 0, y: 0 })
+  const lastCameraRef = useRef<Camera>({ x: 0, y: 0 })
+  const animationFrameRef = useRef<number | null>(null)
 
   useDisableScrollBounce()
 
@@ -270,6 +280,24 @@ export const Canvas = ({ boardId }: CanvasProps) => {
     [history]
   )
 
+  const onWheelClick = useCallback(
+    (e: React.PointerEvent) => {
+      if (e.button === 1) {
+        isPanningRef.current = true
+        setIsPanning(true) // 상태 업데이트
+
+        panStartRef.current = pointerEventToCanvasPoint(e, camera)
+        lastCameraRef.current = camera
+      }
+    },
+    [camera]
+  )
+
+  const onWheelRelease = useCallback(() => {
+    isPanningRef.current = false
+    setIsPanning(false) // 상태 업데이트
+  }, [])
+
   const onWheel = useCallback((e: React.WheelEvent) => {
     setCamera((camera) => ({
       x: camera.x + e.deltaX,
@@ -308,13 +336,50 @@ export const Canvas = ({ boardId }: CanvasProps) => {
     ]
   )
 
+  const onPointerMoveWithPan = useCallback(
+    (e: React.PointerEvent) => {
+      if (isPanningRef.current) {
+        const current = pointerEventToCanvasPoint(e, lastCameraRef.current)
+        const offset = {
+          x: current.x - panStartRef.current.x,
+          y: current.y - panStartRef.current.y,
+        }
+
+        if (animationFrameRef.current) {
+          cancelAnimationFrame(animationFrameRef.current)
+        }
+
+        animationFrameRef.current = requestAnimationFrame(() => {
+          setCamera({
+            x: lastCameraRef.current.x + offset.x,
+            y: lastCameraRef.current.y + offset.y,
+          })
+        })
+      } else {
+        onPointerMove(e)
+      }
+    },
+    [onPointerMove]
+  )
+
   const onPointerLeave = useMutation(({ setMyPresence }) => {
     setMyPresence({ cursor: null })
+    isPanningRef.current = false
+    setIsPanning(false) // 상태 업데이트
   }, [])
 
   const onPointerDown = useCallback(
     (e: React.PointerEvent) => {
       const point = pointerEventToCanvasPoint(e, camera)
+
+      if (e.button === 1) {
+        // 마우스 휠 클릭
+        console.log('휠 클릭')
+        setIsPanning(true)
+        panStart.current = point
+        return
+      }
+
       if (canvasState.mode === CanvasMode.Inserting) {
         return
       }
@@ -331,6 +396,14 @@ export const Canvas = ({ boardId }: CanvasProps) => {
 
   const onPointerUp = useMutation(
     ({}, e) => {
+      if (e.button === 1 && isPanningRef.current) {
+        // 마우스 휠 클릭에서 손을 뗄 때 팬 종료
+        isPanningRef.current = false
+        setIsPanning(false) // 상태 업데이트
+
+        return
+      }
+
       const point = pointerEventToCanvasPoint(e, camera)
 
       if (
@@ -442,12 +515,18 @@ export const Canvas = ({ boardId }: CanvasProps) => {
       />
       <SelectionTools camera={camera} setLastUsedColor={setLastUsedColor} />
       <svg
-        className='h-[100vh] w-[100vw]'
+        className={cn('h-[100vh] w-[100vw]', isPanning && 'cursor-grabbing')}
         onWheel={onWheel}
-        onPointerMove={onPointerMove}
-        onPointerLeave={onPointerLeave}
+        onPointerMove={onPointerMoveWithPan}
+        onPointerLeave={() => {
+          onPointerLeave()
+          isPanningRef.current = false // 팬 상태 초기화
+        }}
         onPointerUp={onPointerUp}
-        onPointerDown={onPointerDown}
+        onPointerDown={(e) => {
+          onPointerDown(e)
+          onWheelClick(e)
+        }}
       >
         <g
           style={{
